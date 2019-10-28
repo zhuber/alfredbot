@@ -1,4 +1,4 @@
-# alfredbot
+# slacksybot
 
 ## A slackbot that automatically assigns a random developer to review each incoming PR
 
@@ -14,7 +14,7 @@
     - Add a "Bot User"
     - "Install App to Your Team"
 2. Copy the "Bot OAuth Access Token" and paste as an environment variable wherever this application runs
-    - "export ALFRED_BOT_TOKEN=YOUR-TOKEN-HERE"
+    - "export SLACKSY_BOT_TOKEN=YOUR-TOKEN-HERE"
 3. Run the app using `python3 app.py`
 4. Invite alfredbot to your github pull request channel(s)
 5. Inform developers to click the :white_check_mark: or :checkered_flag: emojis as they finish reviweing the associated PR
