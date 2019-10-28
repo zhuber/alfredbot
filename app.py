@@ -7,7 +7,7 @@ import ssl as ssl_lib
 import certifi
 import slack
 
-from alfredbot import AlfredBot
+from slacksybot import SlacksyBot
 from attrdict import AttrDict
 
 # Keep track of pending PR notices.
@@ -17,9 +17,9 @@ pr_notices = {}
 # Notifty a random developer that they are assigned to review a PR
 async def notify_developer(web_client: slack.WebClient, user_id: str, channel: str, link: str):
     # Notify a random developer that they are assigned to review the PR.
-    alfredbot = AlfredBot(channel)
+    slacksybot = SlacksyBot(channel)
 
-    message = alfredbot.get_direct_message_payload(user_id, link)
+    message = slacksybot.get_direct_message_payload(user_id, link)
 
     # Post the assignment message in the current slack channel.
     response = await web_client.chat_postMessage(**message)
@@ -27,12 +27,12 @@ async def notify_developer(web_client: slack.WebClient, user_id: str, channel: s
     # Keep track of the timestamp of the message we've just posted so
     # we can use it to update the message after a user
     # has completed an assigned PR review.
-    alfredbot.timestamp = response["ts"]
+    slacksybot.timestamp = response["ts"]
 
     # Store the message so we can update it later
     if channel not in pr_notices:
         pr_notices[channel] = {}
-    pr_notices[channel][user_id] = alfredbot
+    pr_notices[channel][user_id] = slacksybot
 
 
 # Reaction listener
@@ -49,19 +49,18 @@ async def update_emoji(**payload):
         return False
     
     # Get the original PR assignment message.
-    alfredbot = pr_notices[channel_id][user_id]
+    slacksybot = pr_notices[channel_id][user_id]
 
     # Mark the assigned PR as completed.
-    alfredbot.pr_completed = True
-    print('alfred', alfredbot)
+    slacksybot.pr_completed = True
     # Update the assignment message.
-    message = alfredbot.get_direct_message_payload(user_id, alfredbot.link)
+    message = slacksybot.get_direct_message_payload(user_id, slacksybot.link)
 
     # Close the pending assignment message in slack.
     updated_message = await web_client.chat_update(**message)
 
     # Update the timestamp saved on the assignment message.
-    alfredbot.timestamp = updated_message["ts"]
+    slacksybot.timestamp = updated_message["ts"]
 
 
 # Message listener
@@ -87,7 +86,7 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
     ssl_context = ssl_lib.create_default_context(cafile=certifi.where())
-    slack_token = os.environ["ALFRED_BOT_TOKEN"]
+    slack_token = os.environ["SLACKSY_BOT_TOKEN"]
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     rtm_client = slack.RTMClient(

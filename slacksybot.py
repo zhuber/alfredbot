@@ -1,9 +1,9 @@
-class AlfredBot:
+class SlacksyBot:
 
     def __init__(self, channel):
         self.channel = channel
-        self.username = "alfredbot"
-        self.icon_emoji = ":male_astronaut:"
+        self.username = "slacksyBOT"
+        self.icon_emoji = ":robot:"
         self.timestamp = ""
         self.link = ""
         self.pr_completed = False
