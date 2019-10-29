@@ -4,9 +4,9 @@
 
 ## Prequisites
 
-#### Slack instance with a GitHub integration
-#### A channel or channels with GitHub notifications for Pull Requests
-#### Developer team members in channel(s) where GitHub notifications occur
+- Slack instance with a GitHub integration
+- A channel or channels with GitHub notifications for Pull Requests
+- Developer team members in channel(s) where GitHub notifications occur
 
 ## Usage
 
@@ -17,4 +17,5 @@
     - "export SLACKSY_BOT_TOKEN=YOUR-TOKEN-HERE"
 3. Run the app using `python3 app.py`
 4. Invite alfredbot to your github pull request channel(s)
-5. Inform developers to click the :white_check_mark: or :checkered_flag: emojis as they finish reviweing the associated PR
+5. Inform developers to click the :white_check_mark: or :checkered_flag: emojis as they finish reviewing the associated PR
+6. Mark bad PR assignments with :robot_face: to exclude an assigned bot user, or :man-gesturing-no: or :woman-gesturing-no: emojis if the assignment was for the PR author
