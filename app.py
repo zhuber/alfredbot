@@ -12,14 +12,18 @@ from attrdict import AttrDict
 
 # Keep track of pending PR notices.
 pr_notices = {}
+bots = {}
+user_map = {}
 
+def filterMembers(member, user_name):
+    return (not member in bots and (not user_name in user_map or user_map[user_name] != member))
 
-# Notifty a random developer that they are assigned to review a PR
-async def notify_developer(web_client: slack.WebClient, user_id: str, channel: str, link: str):
+# Notify a random developer that they are assigned to review a PR
+async def notify_developer(web_client: slack.WebClient, user_id: str, channel: str, user_name: str, link: str):
     # Notify a random developer that they are assigned to review the PR.
     slacksybot = SlacksyBot(channel)
 
-    message = slacksybot.get_direct_message_payload(user_id, link)
+    message = slacksybot.get_direct_message_payload(user_id, user_name, link)
 
     # Post the assignment message in the current slack channel.
     response = await web_client.chat_postMessage(**message)
@@ -32,7 +36,7 @@ async def notify_developer(web_client: slack.WebClient, user_id: str, channel: s
     # Store the message so we can update it later
     if channel not in pr_notices:
         pr_notices[channel] = {}
-    pr_notices[channel][user_id] = slacksybot
+    pr_notices[channel][slacksybot.timestamp] = slacksybot
 
 
 # Reaction listener
@@ -42,25 +46,49 @@ async def update_emoji(**payload):
     data = payload["data"]
     web_client = payload["web_client"]
     channel_id = data["item"]["channel"]
+    timestamp = data["item"]["ts"]
     user_id = data["user"]
     reaction = data["reaction"]
+
     # Only look for "completed" reactions for existing assignment messages.
-    if (reaction != 'white_check_mark' and reaction != 'checkered_flag') or (channel_id not in pr_notices or user_id not in pr_notices[channel_id]):
+    if (channel_id not in pr_notices or timestamp not in pr_notices[channel_id]):
         return False
-    
+
     # Get the original PR assignment message.
-    slacksybot = pr_notices[channel_id][user_id]
+    slacksybot = pr_notices[channel_id][timestamp]
 
-    # Mark the assigned PR as completed.
-    slacksybot.pr_completed = True
-    # Update the assignment message.
-    message = slacksybot.get_direct_message_payload(user_id, slacksybot.link)
+    # Mark the current reviewer as a bot, so we can ignore that user id later.
+    if (reaction == 'robot_face'):
+        # Parse the bot's user id based on the message.
+        slacksybot.bad_assignment = True
+        # Unset the pending PR.
+        pr_notices[channel_id][timestamp]
+        bots[slacksybot.user_id] = True
+        slacksybot.user_name = 'now on'
 
-    # Close the pending assignment message in slack.
-    updated_message = await web_client.chat_update(**message)
+    # Keep track of the current user name and user id to avoid bad assignments later.
+    if (reaction == 'man-gesturing-no' or reaction == 'woman-gesturing-no'):
+        # Parse the bot's user id based on the message.
+        slacksybot.bad_assignment = True
+        # Unset the pending PR.
+        pr_notices[channel_id][timestamp]
+        user_map[slacksybot.user_name] = slacksybot.user_id
 
-    # Update the timestamp saved on the assignment message.
-    slacksybot.timestamp = updated_message["ts"]
+    # Ignore any other non-relevant emoji reactions.
+    if (reaction == 'white_check_mark' or reaction == 'checkered_flag'):
+        # Mark the assigned PR as completed.
+        slacksybot.pr_completed = True
+        # Unset the pending PR.
+        pr_notices[channel_id][timestamp]
+
+    if (slacksybot.pr_completed or slacksybot.bad_assignment):
+        # Update the assignment message.
+        message = slacksybot.get_direct_message_payload(slacksybot.user_id, slacksybot.user_name, slacksybot.link)
+        # Close the pending assignment message in slack.
+        updated_message = await web_client.chat_update(**message)
+        # Update the timestamp saved on the assignment message.
+        slacksybot.timestamp = updated_message["ts"]
+        pr_notices[channel_id][slacksybot.timestamp]
 
 
 # Message listener
@@ -75,10 +103,17 @@ async def message(**payload):
         for attachment in attachments :
             attributes = AttrDict(attachment)
             if (attributes.pretext and (attributes.pretext.find('Pull request opened') != -1 or attributes.pretext.find('Pull request reopened') != -1)) :
+                # Get the github username.
+                message_info = attributes.pretext.split(' by ')
+                user_name = message_info[1]
+                # Get all members in the slack room.
                 response = await web_client.conversations_members(channel=channel_id)
-                users = response.get('members')
-                user = random.choice(users)
-                return await notify_developer(web_client, user, channel_id, attributes.title_link)
+                members = response.get('members')
+                # Filter out any bots or matching user ids.
+                users = list(filter(lambda x: filterMembers(x, user_name), members))
+                if (users):
+                    user = random.choice(users)
+                    return await notify_developer(web_client, user, channel_id, user_name, attributes.title_link)
 
 
 if __name__ == "__main__":
